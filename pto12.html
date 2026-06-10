@@ -1,0 +1,2703 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Vnotebooth">
+    
+    <title>Premium Photobooth Kiosk - Vnotebooth</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        :root {
+            --bg-dark: #09090b;
+            --surface-glass: rgba(20, 20, 25, 0.7);
+            --border-glass: rgba(255, 255, 255, 0.08);
+            --neon-blue: #00f2fe;
+            --neon-purple: #4facfe;
+            --text-main: #f4f4f5;
+            --text-muted: #a1a1aa;
+            --safe-area-top: env(safe-area-inset-top, 0px);
+            --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+            --vh: 1vh; 
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-main);
+            overflow: hidden;
+            height: calc(var(--vh, 1vh) * 100);
+            width: 100vw;
+            position: fixed;
+            top: 0;
+            left: 0;
+            transition: all 0.3s ease;
+            /* Mencegah bouncing efek di iOS Safari */
+            position: fixed;
+            touch-action: none;
+        }
+
+        /* --- MODE LANDSCAPE KIOSK STYLES --- */
+        body.kiosk-landscape .capture-container,
+        body.kiosk-landscape .editor-container {
+            flex-direction: row !important;
+        }
+        body.kiosk-landscape .session-sidebar {
+            flex-direction: column !important;
+            max-width: 140px;
+        }
+        body.kiosk-landscape .filmstrip {
+            flex-direction: column !important;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        body.kiosk-landscape .editor-controls,
+        body.kiosk-landscape .creator-controls {
+            flex: 1;
+            max-width: 360px;
+        }
+        body.kiosk-landscape .result-container {
+            flex-direction: row !important;
+            align-items: center;
+            gap: 2rem;
+        }
+        body.kiosk-landscape .result-operations {
+            flex: 1;
+        }
+
+        .ambient-bg {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            overflow: hidden;
+            background: radial-gradient(circle at 10% 20%, rgba(79, 172, 254, 0.15) 0%, transparent 40%),
+                        radial-gradient(circle at 90% 80%, rgba(0, 242, 254, 0.15) 0%, transparent 40%);
+            background-size: cover;
+            background-position: center;
+        }
+
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            flex-direction: column;
+            padding: calc(1.5rem + var(--safe-area-top)) 1.2rem calc(1.5rem + var(--safe-area-bottom)) 1.2rem;
+            opacity: 0;
+            transform: scale(0.98);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+
+        .screen.active {
+            display: flex;
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .glass-panel {
+            background: var(--surface-glass);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border-glass);
+            border-radius: 18px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        .btn-gradient {
+            background: linear-gradient(135deg, var(--neon-purple), var(--neon-blue));
+            color: #000;
+            font-weight: 700;
+            border: none;
+            border-radius: 12px;
+            padding: 0.9rem 1.5rem;
+            font-size: 1rem;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+            box-shadow: 0 0 15px rgba(0, 242, 254, 0.2);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-gradient:active {
+            transform: scale(0.96);
+            box-shadow: 0 0 5px rgba(0, 242, 254, 0.1);
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: var(--text-main);
+            border: 1.5px solid var(--border-glass);
+            border-radius: 12px;
+            padding: 0.9rem 1.5rem;
+            font-size: 1rem;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .btn-outline:active {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: var(--neon-blue);
+        }
+
+        .header-title {
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+
+        .header-title h2 {
+            font-size: 1.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #fff 30%, var(--text-muted));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        #screen-home {
+            justify-content: center;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        .logo-container {
+            text-align: center;
+        }
+
+        .logo-container h1 {
+            font-size: 3rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--neon-purple), var(--neon-blue));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -1px;
+            line-height: 1;
+            margin-bottom: 0.5rem;
+            filter: drop-shadow(0 2px 10px rgba(0,242,254,0.3));
+        }
+
+        .logo-container p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .main-menu {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            width: 100%;
+            max-width: 320px;
+        }
+
+        .layout-carousel-container {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            flex: 1;
+            min-height: 0;
+            position: relative;
+        }
+
+        .layout-grid {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: nowrap;
+            gap: 1.2rem;
+            overflow-x: auto;
+            overflow-y: hidden;
+            width: 100%;
+            height: 100%;
+            padding: 1rem 0.5rem;
+            scroll-snap-type: x mandatory;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .layout-grid::-webkit-scrollbar {
+            display: none;
+        }
+
+        .layout-card {
+            flex: 0 0 230px;
+            scroll-snap-align: center;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            padding: 1rem;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            border: 1.5px solid var(--border-glass);
+        }
+
+        .layout-card.selected {
+            border-color: var(--neon-blue);
+            box-shadow: 0 0 25px rgba(0, 242, 254, 0.25);
+            transform: scale(1.02);
+        }
+
+        .layout-preview-box {
+            flex: 1;
+            border-radius: 12px;
+            background: rgba(0,0,0,0.4);
+            margin-bottom: 0.8rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+            border: 1px dashed var(--border-glass);
+            min-height: 0;
+        }
+
+        .layout-preview-box img {
+            max-width: 95%;
+            max-height: 95%;
+            object-fit: contain;
+        }
+
+        .layout-info h3 {
+            font-size: 1.1rem;
+            margin-bottom: 0.2rem;
+        }
+        
+        .layout-info p {
+            font-size: 0.75rem !important;
+            margin-bottom: 0.2rem !important;
+        }
+
+        .delete-frame-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(239, 68, 68, 0.85);
+            border: none;
+            color: #fff;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            cursor: pointer;
+            z-index: 10;
+            transition: background 0.2s;
+        }
+
+        .delete-frame-btn:hover {
+            background: rgb(239, 68, 68);
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .capture-container {
+            display: flex;
+            flex-direction: column; 
+            gap: 1rem;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .camera-viewport-wrapper {
+            flex: 2;
+            position: relative;
+            border-radius: 18px;
+            overflow: hidden;
+            background: #000;
+            border: 1px solid var(--border-glass);
+            min-height: 0;
+        }
+
+        #camera-stream {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        #camera-stream.mirrored {
+            transform: scaleX(-1);
+        }
+
+        .session-sidebar {
+            flex: 1;
+            display: flex;
+            flex-direction: row; 
+            align-items: center;
+            gap: 1rem;
+            padding: 0.8rem;
+            min-height: 0;
+        }
+
+        .filmstrip {
+            display: flex;
+            flex-direction: row; 
+            gap: 0.5rem;
+            flex: 1;
+            overflow-x: auto;
+            overflow-y: hidden;
+            width: 100%;
+        }
+
+        .strip-slot {
+            height: 70px;
+            width: 93px; 
+            flex-shrink: 0;
+            border-radius: 8px;
+            background: rgba(0,0,0,0.5);
+            border: 1.5px solid var(--border-glass);
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .strip-slot.active {
+            border-color: var(--neon-purple);
+            box-shadow: 0 0 10px var(--neon-purple);
+        }
+
+        .strip-slot img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .slot-badge {
+            position: absolute;
+            bottom: 4px;
+            left: 4px;
+            background: rgba(0,0,0,0.7);
+            padding: 1px 4px;
+            border-radius: 4px;
+            font-size: 0.55rem;
+            color: var(--neon-blue);
+            font-weight: 700;
+        }
+
+        .countdown-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.4);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+
+        .countdown-text {
+            font-size: 6rem;
+            font-weight: 900;
+            color: #fff;
+            text-shadow: 0 0 30px rgba(0, 242, 254, 0.8);
+        }
+
+        .flash-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #fff;
+            opacity: 0;
+            z-index: 20;
+            pointer-events: none;
+        }
+
+        .flash-active {
+            animation: flashAnim 0.4s ease-out;
+        }
+
+        @keyframes flashAnim {
+            0% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        .editor-container {
+            display: flex;
+            flex-direction: column; 
+            gap: 1rem;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .editor-workspace, .creator-workspace {
+            flex: 1.8;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            background: rgba(0,0,0,0.3);
+            border-radius: 18px;
+            padding: 0.5rem;
+            min-height: 0;
+            touch-action: none; /* Wajib untuk multi-touch custom */
+        }
+
+        .editor-canvas-container, .creator-canvas-container {
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+            height: 100%;
+            max-height: 380px; 
+            aspect-ratio: 1/3; 
+            overflow: hidden;
+            border-radius: 4px;
+            background: #111;
+        }
+
+        .editor-canvas-container.ratio-4x6, .creator-canvas-container.ratio-4x6 {
+            aspect-ratio: 2/3;
+        }
+
+        .creator-bg-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1; 
+            pointer-events: none;
+        }
+
+        .creator-bg-overlay img {
+            width: 100%;
+            height: 100%;
+            object-fit: fill;
+        }
+
+        .creator-slots-underlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2; 
+        }
+
+        .frame-composer-underlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .creator-slots-underlay .creator-adjustable-slot {
+            position: absolute;
+            border: 2px dashed var(--neon-blue);
+            background: rgba(0, 242, 254, 0.15);
+            box-shadow: inset 0 0 10px rgba(0, 242, 254, 0.2);
+            cursor: move;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            touch-action: none; 
+        }
+
+        .creator-adjustable-slot.active-create-slot {
+            border: 2px solid var(--neon-purple);
+            background: rgba(79, 172, 254, 0.25);
+            z-index: 5;
+        }
+
+        .slot-delete-node {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            background: #ef4444;
+            color: white;
+            width: 24px; 
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            cursor: pointer;
+            z-index: 20; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+        }
+
+        .slot-resize-handle {
+            position: absolute;
+            bottom: -2px;
+            right: -2px;
+            width: 22px; 
+            height: 22px;
+            background: var(--neon-blue);
+            cursor: nwse-resize;
+            border-top-left-radius: 4px;
+            z-index: 15;
+            box-shadow: -1px -1px 4px rgba(0,0,0,0.3);
+        }
+
+        .composer-slot {
+            position: absolute;
+            overflow: hidden;
+        }
+
+        .composer-slot.selected-slot {
+            box-shadow: inset 0 0 0 3px var(--neon-purple), 0 0 15px var(--neon-purple);
+            z-index: 5;
+        }
+
+        .composer-slot img {
+            position: absolute;
+            transform-origin: center center;
+            cursor: move;
+            touch-action: none;
+        }
+
+        .frame-composer-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 3;
+            pointer-events: none;
+        }
+
+        .frame-composer-overlay img {
+            width: 100%;
+            height: 100%;
+            object-fit: fill;
+        }
+
+        .editor-controls, .creator-controls {
+            flex: 1.2;
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+            min-height: 0;
+            overflow-y: auto;
+        }
+
+        .control-group {
+            padding: 0.8rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .control-group h4 {
+            font-size: 0.85rem;
+            color: var(--neon-blue);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* PREMIUM CUSTOM COLOR PICKER INTERFACE */
+        .premium-color-picker-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+            background: rgba(255, 255, 255, 0.02);
+            padding: 0.6rem;
+            border-radius: 12px;
+            border: 1px solid var(--border-glass);
+        }
+
+        .color-swatches-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 0.4rem;
+        }
+
+        .color-swatch-node {
+            aspect-ratio: 1;
+            border-radius: 8px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .color-swatch-node.active-swatch {
+            border-color: #fff;
+            transform: scale(1.1);
+            box-shadow: 0 0 10px rgba(255,255,255,0.4);
+        }
+
+        .transform-buttons, .creator-buttons-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr); 
+            gap: 0.5rem;
+        }
+
+        .btn-action {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--border-glass);
+            color: var(--text-main);
+            padding: 0.6rem 0.4rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            transition: all 0.2s;
+        }
+
+        .btn-action.selected-retake {
+            border-color: var(--neon-purple);
+            background: rgba(79, 172, 254, 0.2);
+        }
+
+        .result-container {
+            display: flex;
+            flex-direction: column; 
+            gap: 1rem;
+            max-width: 100%;
+            margin: 0 auto;
+            width: 100%;
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto; 
+        }
+
+        .result-preview-panel {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex: 1.5;
+            min-height: 0;
+        }
+
+        #final-render-preview {
+            max-width: 100%;
+            max-height: 280px; 
+            border-radius: 6px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            object-fit: contain;
+        }
+
+        .result-operations {
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+            flex: 1;
+        }
+
+        .qr-output-box {
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .qr-wrapper {
+            background: #fff;
+            padding: 6px;
+            border-radius: 8px;
+            display: inline-block;
+        }
+
+        .qr-wrapper img {
+            width: 90px !important;
+            height: 90px !important;
+        }
+
+        .qr-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+            flex: 1;
+        }
+        
+        .qr-actions h4 { font-size: 0.9rem; }
+        .qr-actions p { font-size: 0.75rem !important; }
+
+        .processing-modal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(9, 9, 11, 0.95);
+            z-index: 100;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid var(--border-glass);
+            border-top-color: var(--neon-blue);
+            border-radius: 50%;
+            animation: spin 1s infinite linear;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr); 
+            gap: 1rem;
+            overflow-y: auto;
+            flex: 1;
+            padding-bottom: 1rem;
+        }
+
+        .gallery-item {
+            padding: 0.8rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+            position: relative;
+        }
+
+        .gallery-thumb-container {
+            aspect-ratio: 2/3;
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .settings-layout class-panel {
+            max-width: 100%;
+            margin: 0 auto;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            flex: 1;
+            padding-bottom: 1rem;
+        }
+
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+        }
+
+        .setting-detail h4 {
+            font-size: 1rem;
+            margin-bottom: 0.1rem;
+        }
+
+        .setting-detail p {
+            font-size: 0.75rem;
+        }
+
+        .setting-ctrl select {
+            padding: 0.5rem 1rem;
+            font-size: 0.9rem;
+            background: #18181b;
+            color: #fff;
+            border: 1px solid var(--border-glass);
+            border-radius: 6px;
+        }
+
+        .toast-notification {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: rgba(20, 20, 25, 0.95);
+            border: 1px solid var(--neon-blue);
+            color: #fff;
+            padding: 0.8rem 1.5rem;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            z-index: 200;
+            white-space: nowrap;
+            transition: transform 0.3s ease;
+        }
+        
+        .toast-notification.visible {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .review-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.8rem;
+            flex: 1;
+            overflow-y: auto;
+            padding: 0.5rem;
+        }
+
+        .review-card {
+            border: 2px solid var(--border-glass);
+            border-radius: 12px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            background: rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .review-card.selected {
+            border-color: var(--neon-purple);
+            box-shadow: 0 0 15px rgba(79, 172, 254, 0.4);
+        }
+
+        .review-thumb {
+            aspect-ratio: 4/3;
+            width: 100%;
+            object-fit: cover;
+            background: #000;
+        }
+
+        .review-meta {
+            padding: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0,0,0,0.5);
+        }
+
+        @media print {
+            body, html {
+                background: #fff !important;
+                color: #000 !important;
+                overflow: visible !important;
+                height: auto !important;
+                width: auto !important;
+                position: static !important;
+            }
+            .screen, .ambient-bg, .processing-modal, .toast-notification {
+                display: none !important;
+            }
+            #screen-result {
+                display: block !important;
+                opacity: 1 !important;
+                position: static !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            .print-2x6 #final-render-preview {
+                width: 600px !important;
+                height: 1800px !important;
+            }
+            .print-4x6 #final-render-preview {
+                width: 1200px !important;
+                height: 1800px !important;
+            }
+            .result-container {
+                display: block !important;
+            }
+            .result-operations, .header-title, #btn-back-from-result {
+                display: none !important;
+            }
+            #final-render-preview {
+                box-shadow: none !important;
+                border-radius: 0 !important;
+                max-height: none !important;
+                object-fit: fill !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="ambient-bg" id="global-ambient-bg"></div>
+
+    <div id="processing-modal" class="processing-modal">
+        <div class="spinner"></div>
+        <h3 id="processing-title" style="font-size:1.2rem;">Memproses...</h3>
+        <p id="processing-desc" style="color: var(--text-muted); font-size:0.85rem; text-align:center; padding:0 1rem;"></p>
+        <div class="progress-bar-container" id="progress-container" style="display:none; width:200px; height:4px; background:var(--border-glass); border-radius:10px; overflow:hidden; margin-top: 10px;">
+            <div id="progress-bar" class="progress-bar-fill" style="width:0%; height:100%; background: linear-gradient(90deg, var(--neon-purple), var(--neon-blue));"></div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast-notification">Notification text</div>
+
+    <div id="screen-home" class="screen active">
+        <div class="logo-container">
+            <h1>VNOTEBOOTH</h1>
+            <p>Premium Kiosk Experience</p>
+        </div>
+        <div class="main-menu">
+            <button class="btn-gradient" onclick="renderCarouselLayouts(); navigateTo('screen-layout');">
+                <i class="fa-solid fa-camera"></i> Mulai Foto
+            </button>
+            <button class="btn-outline" onclick="initiateFrameCreatorWorkspace()">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> Buat Frame Kustom
+            </button>
+            <button class="btn-outline" onclick="openGallery()">
+                <i class="fa-solid fa-images"></i> Galeri
+            </button>
+            <button class="btn-outline" onclick="navigateTo('screen-settings')">
+                <i class="fa-solid fa-gear"></i> Pengaturan
+            </button>
+        </div>
+    </div>
+
+    <div id="screen-layout" class="screen">
+        <div class="header-title">
+            <h2>PILIH STRIP LAYOUT</h2>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem;">Geser kiri-kanan untuk melihat template</p>
+        </div>
+        
+        <div class="layout-carousel-container">
+            <div class="layout-grid" id="carousel-frame-wrapper"></div>
+        </div>
+
+        <div style="padding: 0.5rem 0 0.8rem; text-align: center;">
+            <div style="display: flex; justify-content: center; gap: 1rem; width:100%;">
+                <button class="btn-outline" style="flex:1;" onclick="navigateTo('screen-home')">Kembali</button>
+                <button class="btn-gradient" style="flex:1;" onclick="startPhotoSession()">Pilih</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-frame-creator" class="screen">
+        <div class="header-title">
+            <h2>DESIGN STRIP FRAME</h2>
+            <p style="font-size: 0.8rem; color: var(--text-muted);">Atur ukuran, posisi, dan warna secara visual / gesture</p>
+        </div>
+        <div class="editor-container">
+            <div class="creator-workspace">
+                <div id="creator-canvas-view" class="creator-canvas-container">
+                    <div id="creator-background-layer" class="creator-bg-overlay">
+                        <img id="creator-bg-preview-img" src="" style="display:none;" alt="BG">
+                    </div>
+                    <div id="creator-slots-container" class="creator-slots-underlay"></div>
+                </div>
+            </div>
+            <div class="creator-controls">
+                <div class="glass-panel control-group">
+                    <h4>1. Pilih Rasio Cetak</h4>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.5rem;">
+                        <button id="btn-ratio-2x6" class="btn-action" onclick="changeCreatorCanvasRatio('2x6')">Rasio 2x6</button>
+                        <button id="btn-ratio-4x6" class="btn-action" onclick="changeCreatorCanvasRatio('4x6')">Rasio 4x6</button>
+                    </div>
+                </div>
+                <div class="glass-panel control-group">
+                    <h4>2. Warna Dasar Frame</h4>
+                    <div class="premium-color-picker-container">
+                        <div class="color-swatches-grid" id="creator-swatches-wrapper"></div>
+                    </div>
+                </div>
+                <div class="glass-panel control-group">
+                    <h4>3. Olah Kotak Foto (Maks 10 Slot)</h4>
+                    <div class="creator-buttons-grid">
+                        <button class="btn-action" style="grid-column: span 2;" onclick="addNewAdjustableLayoutSlot()"><i class="fa-solid fa-plus"></i> Tambah</button>
+                        <button class="btn-action" onclick="resizeSelectedAdjustableSlot(1.05)"><i class="fa-solid fa-magnifying-glass-plus"></i> Skala +</button>
+                        <button class="btn-action" onclick="resizeSelectedAdjustableSlot(0.95)"><i class="fa-solid fa-magnifying-glass-minus"></i> Skala -</button>
+                        <button class="btn-action" style="grid-column: span 4;" onclick="rotateSelectedAdjustableSlot()"><i class="fa-solid fa-rotate"></i> Putar Kotak (Rotate 90°)</button>
+                    </div>
+                </div>
+                <div class="glass-panel control-group">
+                    <h4>4. Background Gambar Overlay</h4>
+                    <button class="btn-outline" style="padding:0.5rem; font-size:0.85rem;" onclick="triggerBackgroundCreatorUpload()">
+                        <i class="fa-solid fa-image"></i> Upload Gambar Atas
+                    </button>
+                    <input type="file" id="creator-bg-uploader" class="file-input" accept="image/*" onchange="handleBackgroundCreatorUpload(this)">
+                </div>
+                <div style="display:flex; gap:0.5rem; margin-top:auto;">
+                    <button class="btn-outline" style="flex:1;" onclick="navigateTo('screen-home')">Batal</button>
+                    <button class="btn-gradient" style="flex:1;" onclick="compileAndSaveCustomFrameAsset()">
+                        <i class="fa-solid fa-floppy-disk"></i> Simpan Frame
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-capture" class="screen">
+        <div class="capture-container">
+            <div class="camera-viewport-wrapper">
+                <video id="camera-stream" autoplay playsinline muted></video>
+                <div class="countdown-overlay" id="countdown-layer">
+                    <div class="countdown-text" id="countdown-number">3</div>
+                </div>
+                <div class="flash-overlay" id="flash-layer"></div>
+            </div>
+            <div class="glass-panel session-sidebar">
+                <div class="filmstrip" id="session-filmstrip"></div>
+                <button id="btn-trigger-capture" class="btn-gradient" onclick="executeCaptureSequence()">
+                    <i class="fa-solid fa-bolt"></i> Mulai
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-review-retake" class="screen">
+        <div class="header-title">
+            <h2>REVIEW & RETAKE FOTO</h2>
+            <p style="font-size: 0.8rem; color: var(--text-muted);">Pilih salah satu foto jika ingin mengambil ulang jepretan</p>
+        </div>
+        <div class="review-grid" id="review-photos-wrapper"></div>
+        <div style="padding: 0.5rem 0; display: flex; gap: 0.8rem;">
+            <button class="btn-outline" style="flex:1;" id="btn-action-retake" onclick="triggerSinglePhotoRetake()" disabled>
+                <i class="fa-solid fa-rotate-left"></i> Retake Foto
+            </button>
+            <button class="btn-gradient" style="flex:1;" onclick="proceedToEditorWorkspace()">
+                Lanjut Ke Frame <i class="fa-solid fa-chevron-right"></i>
+            </button>
+        </div>
+    </div>
+
+    <div id="screen-editor" class="screen">
+        <div class="header-title">
+            <h2>SESUAIKAN FOTO</h2>
+            <p style="font-size: 0.75rem; color: var(--text-muted); text-align: center;">Gunakan 2 jari untuk Pinch-Zoom / Putar Bebas</p>
+        </div>
+        <div class="editor-container">
+            <div class="editor-workspace" id="multi-touch-editor-zone">
+                <div id="editor-canvas-view" class="editor-canvas-container">
+                    <div id="composer-underlay" class="frame-composer-underlay"></div>
+                    <div id="composer-overlay" class="frame-composer-overlay">
+                        <img id="editor-frame-img" src="" alt="Frame Layer">
+                    </div>
+                </div>
+            </div>
+            <div class="editor-controls">
+                <div class="glass-panel control-group">
+                    <div style="display:flex; gap: 0.5rem; align-items:center; justify-content:space-between;">
+                        <h4 style="margin-bottom:0;">Pilih Slot Foto:</h4>
+                        <div style="display:flex; gap: 0.5rem;">
+                            <button class="btn-action" style="padding:0.4rem 0.8rem;" onclick="navigateSlot(-1)"><i class="fa-solid fa-chevron-left"></i> Prev</button>
+                            <button class="btn-action" style="padding:0.4rem 0.8rem;" onclick="navigateSlot(1)">Next <i class="fa-solid fa-chevron-right"></i></button>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass-panel control-group">
+                    <div class="transform-buttons">
+                        <button class="btn-action" onclick="transformSelectedImage('zoomIn')"><i class="fa-solid fa-plus"></i> In</button>
+                        <button class="btn-action" onclick="transformSelectedImage('zoomOut')"><i class="fa-solid fa-minus"></i> Out</button>
+                        <button class="btn-action" onclick="transformSelectedImage('rotate180')"><i class="fa-solid fa-arrows-spin"></i> 180°</button>
+                        <button class="btn-action" onclick="transformSelectedImage('reset')"><i class="fa-solid fa-undo"></i> Reset</button>
+                    </div>
+                </div>
+                <button class="btn-gradient" style="width:100%;" onclick="renderFinalComposition()">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Hasil
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-result" class="screen">
+        <div class="header-title">
+            <h2>HASIL PHOTOBOOTH</h2>
+        </div>
+        <div class="result-container">
+            <div class="result-preview-panel">
+                <img id="final-render-preview" src="" alt="Final Composite Image">
+            </div>
+            <div class="result-operations">
+                <div class="glass-panel" style="padding: 0.8rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                    <button class="btn-gradient" style="width:100%; font-size:0.9rem;" onclick="downloadImage()">
+                        <i class="fa-solid fa-download"></i> Unduh File JPG
+                    </button>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.5rem;">
+                        <button class="btn-outline" style="padding:0.6rem; font-size:0.85rem;" onclick="printHardcopy()">
+                            <i class="fa-solid fa-print"></i> Cetak Luar
+                        </button>
+                        <button class="btn-outline" style="padding:0.6rem; font-size:0.85rem;" onclick="initiateBluetoothThermalPrint()">
+                            <i class="fa-solid fa-print"></i> Bluetooth
+                        </button>
+                    </div>
+                </div>
+
+                <div id="qr-container-block" class="glass-panel qr-output-box" style="display:none;">
+                    <div class="qr-wrapper" id="qrcode"></div>
+                    <div class="qr-actions">
+                        <h4>Ambil Digital</h4>
+                        <p style="color:var(--text-muted); line-height:1.2;">Scan QR untuk unduh ke HP.</p>
+                        <button class="btn-action" style="padding: 0.4rem;" onclick="copyCloudUrl()">
+                            <i class="fa-solid fa-copy"></i> Salin Link
+                        </button>
+                    </div>
+                </div>
+
+                <button id="btn-back-from-result" class="btn-outline" style="width:100%; margin-top: auto;" onclick="navigateTo('screen-home')">
+                    Selesai & Kembali
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-gallery" class="screen">
+        <div class="header-title">
+            <h2>GALERI</h2>
+        </div>
+        <div id="gallery-container" class="gallery-grid"></div>
+        <div style="text-align: center; margin-top: 1rem;">
+            <button class="btn-outline" style="width:100%;" onclick="navigateTo('screen-home')">Kembali</button>
+        </div>
+    </div>
+
+    <div id="screen-settings" class="screen">
+        <div class="header-title">
+            <h2>PENGATURAN</h2>
+        </div>
+        <div class="settings-layout glass-panel">
+            <div class="setting-row" style="border-bottom: 1px solid var(--border-glass);">
+                <div class="setting-detail">
+                    <h4>Mode Tampilan Kiosk</h4>
+                    <p>Ubah orientasi layout aplikasi.</p>
+                </div>
+                <div class="setting-ctrl">
+                    <select id="set-kiosk-mode" onchange="applyKioskOrientationMode(); saveConfiguration();">
+                        <option value="portrait">Mode Potret (Vertikal)</option>
+                        <option value="landscape">Mode Lanskap (Horizontal)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="setting-row" style="border-bottom: 1px solid var(--border-glass);">
+                <div class="setting-detail">
+                    <h4>Watermark Cetak</h4>
+                    <p>Tampilkan tulisan VNOTEBOOTH PREMIUM.</p>
+                </div>
+                <div class="setting-ctrl">
+                    <label class="toggle-switch" style="position: relative; display: inline-block; width: 44px; height: 24px;">
+                        <input type="checkbox" id="set-watermark" checked onchange="saveConfiguration()" style="display:none;">
+                        <span class="slider-switch" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #27272a; transition: .3s; border-radius: 24px;"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="setting-row" style="border-bottom: 1px solid var(--border-glass);">
+                <div class="setting-detail">
+                    <h4>Countdown</h4>
+                    <p>Waktu jeda jepret kamera.</p>
+                </div>
+                <div class="setting-ctrl">
+                    <select id="set-countdown" onchange="saveConfiguration()">
+                        <option value="3">3 Detik</option>
+                        <option value="5">5 Detik</option>
+                        <option value="10">10 Detik</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="setting-row" style="border-bottom: 1px solid var(--border-glass);">
+                <div class="setting-detail">
+                    <h4>Custom Home Background</h4>
+                    <p>Ganti latar belakang utama.</p>
+                </div>
+                <div class="setting-ctrl">
+                    <button class="btn-action" style="padding: 5px 10px;" onclick="document.getElementById('home-bg-uploader').click()">
+                        <i class="fa-solid fa-upload"></i> Upload
+                    </button>
+                    <input type="file" id="home-bg-uploader" class="file-input" accept="image/*" onchange="handleHomeBackgroundUpload(this)">
+                </div>
+            </div>
+
+            <div class="setting-row" style="border-bottom: 1px solid var(--border-glass);">
+                <div class="setting-detail">
+                    <h4>Efek Flash</h4>
+                    <p>Kilatan layar putih.</p>
+                </div>
+                <div class="setting-ctrl">
+                    <label class="toggle-switch" style="position: relative; display: inline-block; width: 44px; height: 24px;">
+                        <input type="checkbox" id="set-flash" checked onchange="saveConfiguration()" style="display:none;">
+                        <span class="slider-switch" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #27272a; transition: .3s; border-radius: 24px;"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="setting-row" style="border-bottom: 1px solid var(--border-glass);">
+                <div class="setting-detail">
+                    <h4>Mirror Preview</h4>
+                    <p>Membalikkan pratinjau kamera.</p>
+                </div>
+                <div class="setting-ctrl">
+                    <label class="toggle-switch" style="position: relative; display: inline-block; width: 44px; height: 24px;">
+                        <input type="checkbox" id="set-mirror" checked onchange="saveConfiguration()" style="display:none;">
+                        <span class="slider-switch" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #27272a; transition: .3s; border-radius: 24px;"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="setting-row" style="border-bottom: 1px solid var(--border-glass);">
+                <div class="setting-detail">
+                    <h4>Auto Cloud Upload</h4>
+                    <p>Kirim langsung hasil ke IMGBB.</p>
+                </div>
+                <div class="setting-ctrl">
+                    <label class="toggle-switch" style="position: relative; display: inline-block; width: 44px; height: 24px;">
+                        <input type="checkbox" id="set-upload" checked onchange="saveConfiguration()" style="display:none;">
+                        <span class="slider-switch" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #27272a; transition: .3s; border-radius: 24px;"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="setting-row">
+                <div class="setting-detail">
+                    <h4>Auto QR Code</h4>
+                    <p>Tampilkan QR otomatis.</p>
+                </div>
+                <div class="setting-ctrl">
+                    <label class="toggle-switch" style="position: relative; display: inline-block; width: 44px; height: 24px;">
+                        <input type="checkbox" id="set-qr" checked onchange="saveConfiguration()" style="display:none;">
+                        <span class="slider-switch" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #27272a; transition: .3s; border-radius: 24px;"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+        <div style="text-align: center; margin-top: 1rem;">
+            <button class="btn-outline" style="width:100%;" onclick="navigateTo('screen-home')">Simpan & Kembali</button>
+        </div>
+    </div>
+
+    <script>
+        const styleSheet = document.createElement("style");
+        styleSheet.innerText = `
+            .slider-switch:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; }
+            input:checked + .slider-switch { background: linear-gradient(135deg, var(--neon-purple), var(--neon-blue)); }
+            input:checked + .slider-switch:before { transform: translateX(20px); }
+        `;
+        document.head.appendChild(styleSheet);
+
+        const CONFIG_KEY = 'VNOTE_BOOTH_CONFIGS';
+        const GALLERY_STORAGE_KEY = 'VNOTE_BOOTH_GALLERY_STORES';
+        const FRAMES_STORAGE_KEY = 'VNOTE_BOOTH_DYNAMIC_FRAMES';
+        const IMGBB_API_TOKEN = '9031cda690be96c53fd9d37233948f85';
+        
+        // Pilihan warna premium preset untuk Kiosk
+        const PREMIUM_PRESET_SWATCHES = [
+            '#141419', '#000000', '#ffffff', '#ef4444', '#3b82f6', 
+            '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4',
+            '#1e1b4b', '#0f172a'
+        ];
+
+        let applicationConfig = {
+            countdown: 3,
+            flash: true,
+            mirror: true,
+            autoUpload: true,
+            autoQr: true,
+            frameColor: '#141419',
+            homeBg: '',
+            kioskMode: 'portrait',
+            watermark: true
+        };
+
+        let templateFramesArray = [];
+        let activeSelectedFrameId = "default-2x6"; 
+
+        let capturedPhotosArray = [];
+        let mediaStreamTrackReference = null;
+        let qrCodeComponentInstance = null;
+        let runningCloudGeneratedUrl = "";
+
+        let arrangementSlotsData = []; 
+        let activeSelectedSlotIndex = 0;
+
+        // Multi-touch tracking storage untuk iOS Native gesture
+        let activePointerCache = [];
+        let initialGestureDistance = 0;
+        let initialGestureAngle = 0;
+        let baseTransformScale = 1;
+        let baseTransformAngle = 0;
+
+        let creatorActiveRatio = "2x6"; 
+        let creatorDefinedSlots = []; 
+        let creatorSelectedSlotIndex = null;
+        let creatorLoadedBackgroundBase64 = null;
+        let creatorDraggingElement = null;
+        let creatorDragMode = "move"; 
+        let creatorStartCoords = { x: 0, y: 0 };
+        let creatorStartGeometry = { left: 0, top: 0, width: 0, height: 0 };
+
+        let reviewSelectedIdx = null;
+        let isRetakeSession = false;
+
+        function resetViewportHeight() {
+            let vh = window.innerHeight * 0.01;
+            document.documentElement.style.setProperty('--vh', `${vh}px`);
+        }
+        window.addEventListener('resize', resetViewportHeight);
+        window.addEventListener('orientationchange', resetViewportHeight);
+
+        window.addEventListener('DOMContentLoaded', () => {
+            resetViewportHeight();
+            loadConfigurationFile();
+            loadMasterFramesLibrary();
+            applyConfigurationInterfaceValues();
+            applyKioskOrientationMode();
+            setupGlobalWindowDragEvents();
+            applyCustomHomeBackground();
+            buildPremiumColorPickerUi();
+        });
+
+        // Kunci bouncing scrolling agar terasa seperti iOS native app wrapper
+        document.body.addEventListener('touchmove', function(e) {
+            if (!e.target.closest('.layout-grid') && !e.target.closest('.gallery-grid') && !e.target.closest('.settings-layout') && !e.target.closest('.review-grid') && !e.target.closest('.creator-controls') && !e.target.closest('.editor-controls')) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        function navigateTo(targetScreenId) {
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.remove('active');
+            });
+            const selectedScreen = document.getElementById(targetScreenId);
+            selectedScreen.classList.add('active');
+            
+            if (targetScreenId !== 'screen-capture') {
+                terminateCameraHardwareResource();
+            }
+        }
+
+        function loadConfigurationFile() {
+            const rawData = localStorage.getItem(CONFIG_KEY);
+            if (rawData) {
+                try { 
+                    applicationConfig = { ...applicationConfig, ...JSON.parse(rawData) }; 
+                } catch(e) { console.error("Config corruption", e); }
+            } else {
+                saveConfigurationToDisk();
+            }
+        }
+
+        function saveConfigurationToDisk() {
+            localStorage.setItem(CONFIG_KEY, JSON.stringify(applicationConfig));
+        }
+
+        function applyConfigurationInterfaceValues() {
+            document.getElementById('set-countdown').value = applicationConfig.countdown;
+            document.getElementById('set-flash').checked = applicationConfig.flash;
+            document.getElementById('set-mirror').checked = applicationConfig.mirror;
+            document.getElementById('set-upload').checked = applicationConfig.autoUpload;
+            document.getElementById('set-qr').checked = applicationConfig.autoQr;
+            document.getElementById('set-kiosk-mode').value = applicationConfig.kioskMode || 'portrait';
+            document.getElementById('set-watermark').checked = applicationConfig.watermark !== false;
+        }
+
+        function saveConfiguration() {
+            applicationConfig.countdown = parseInt(document.getElementById('set-countdown').value);
+            applicationConfig.flash = document.getElementById('set-flash').checked;
+            applicationConfig.mirror = document.getElementById('set-mirror').checked;
+            applicationConfig.autoUpload = document.getElementById('set-upload').checked;
+            applicationConfig.autoQr = document.getElementById('set-qr').checked;
+            applicationConfig.kioskMode = document.getElementById('set-kiosk-mode').value;
+            applicationConfig.watermark = document.getElementById('set-watermark').checked;
+            saveConfigurationToDisk();
+            displayToastMessage("Konfigurasi disimpan");
+        }
+
+        function applyKioskOrientationMode() {
+            const mode = document.getElementById('set-kiosk-mode').value;
+            if (mode === 'landscape') {
+                document.body.classList.add('kiosk-landscape');
+            } else {
+                document.body.classList.remove('kiosk-landscape');
+            }
+        }
+
+        function buildPremiumColorPickerUi() {
+            const wrapper = document.getElementById('creator-swatches-wrapper');
+            wrapper.innerHTML = "";
+            PREMIUM_PRESET_SWATCHES.forEach(color => {
+                const node = document.createElement('div');
+                node.className = "color-swatch-node";
+                node.style.backgroundColor = color;
+                if(color === applicationConfig.frameColor) node.classList.add('active-swatch');
+                node.onclick = () => {
+                    document.querySelectorAll('.color-swatch-node').forEach(n => n.classList.remove('active-swatch'));
+                    node.classList.add('active-swatch');
+                    applicationConfig.frameColor = color;
+                    updateCreatorCanvasBackgroundColor();
+                };
+                wrapper.appendChild(node);
+            });
+        }
+
+        function handleHomeBackgroundUpload(input) {
+            const file = input.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                applicationConfig.homeBg = e.target.result;
+                saveConfigurationToDisk();
+                applyCustomHomeBackground();
+                displayToastMessage("Tema Home terpasang!");
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function applyCustomHomeBackground() {
+            const bgNode = document.getElementById('global-ambient-bg');
+            if (applicationConfig.homeBg) {
+                bgNode.style.background = `url(${applicationConfig.homeBg})`;
+                bgNode.style.backgroundSize = 'cover';
+                bgNode.style.backgroundPosition = 'center';
+            } else {
+                bgNode.style.background = `radial-gradient(circle at 10% 20%, rgba(79, 172, 254, 0.15) 0%, transparent 40%), radial-gradient(circle at 90% 80%, rgba(0, 242, 254, 0.15) 0%, transparent 40%)`;
+            }
+        }
+
+        function updateCreatorCanvasBackgroundColor() {
+            const chosenColor = applicationConfig.frameColor;
+            const viewContainer = document.getElementById('creator-canvas-view');
+            viewContainer.style.backgroundColor = chosenColor;
+        }
+
+        function getDefaultFramesStructure() {
+            const fColor = '#141419';
+            return [
+                {
+                    id: "default-2x6",
+                    name: "Layout Classic 2x6",
+                    type: "2x6",
+                    desc: "Cetak Potret Tinggi standard",
+                    isCustom: false,
+                    slots: [
+                        { left: 40, top: 40, width: 520, height: 360 },
+                        { left: 40, top: 440, width: 520, height: 360 },
+                        { left: 40, top: 840, width: 520, height: 360 },
+                        { left: 40, top: 1240, width: 520, height: 360 }
+                    ],
+                    data: generateBase64PlaceholderFrame('2x6', [
+                        { left: 40, top: 40, width: 520, height: 360 },
+                        { left: 40, top: 440, width: 520, height: 360 },
+                        { left: 40, top: 840, width: 520, height: 360 },
+                        { left: 40, top: 1240, width: 520, height: 360 }
+                    ], fColor)
+                },
+                {
+                    id: "default-4x6",
+                    name: "Layout Modern Quad 4x6",
+                    type: "4x6",
+                    desc: "Kotak Lebar Landscape",
+                    isCustom: false,
+                    slots: [
+                        { left: 50, top: 60, width: 510, height: 380 },
+                        { left: 50, top: 500, width: 510, height: 380 },
+                        { left: 640, top: 60, width: 510, height: 380 },
+                        { left: 640, top: 500, width: 510, height: 380 }
+                    ],
+                    data: generateBase64PlaceholderFrame('4x6', [
+                        { left: 50, top: 60, width: 510, height: 380 },
+                        { left: 50, top: 500, width: 510, height: 380 },
+                        { left: 640, top: 60, width: 510, height: 380 },
+                        { left: 640, top: 500, width: 510, height: 380 }
+                    ], fColor)
+                }
+            ];
+        }
+
+        function loadMasterFramesLibrary() {
+            const savedFrames = localStorage.getItem(FRAMES_STORAGE_KEY);
+            let parsedSavedFrames = [];
+            if (savedFrames) {
+                try { parsedSavedFrames = JSON.parse(savedFrames); } catch(e) { console.error(e); }
+            }
+            const defaultFrames = getDefaultFramesStructure();
+            const customFrames = parsedSavedFrames.filter(f => f.isCustom === true);
+            templateFramesArray = [...defaultFrames, ...customFrames];
+            saveFramesLibraryToDisk();
+            renderCarouselLayouts();
+        }
+
+        function saveFramesLibraryToDisk() {
+            localStorage.setItem(FRAMES_STORAGE_KEY, JSON.stringify(templateFramesArray));
+        }
+
+        function renderCarouselLayouts() {
+            const container = document.getElementById('carousel-frame-wrapper');
+            container.innerHTML = "";
+
+            templateFramesArray.forEach(frame => {
+                const isSelected = (frame.id === activeSelectedFrameId) ? "selected" : "";
+                const card = document.createElement('div');
+                card.className = `glass-panel layout-card ${isSelected}`;
+                card.setAttribute('onclick', `selectCarouselFrameId('${frame.id}')`);
+                
+                let deleteButtonElement = "";
+                if (frame.isCustom) {
+                    deleteButtonElement = `<button class="delete-frame-btn" onclick="deleteCustomFrame(event, '${frame.id}')"><i class="fa-solid fa-trash"></i></button>`;
+                }
+
+                card.innerHTML = `
+                    ${deleteButtonElement}
+                    <div class="layout-preview-box">
+                        <img src="${frame.data}" alt="${frame.name}">
+                    </div>
+                    <div class="layout-info">
+                        <h3>${frame.name}</h3>
+                        <p style="color:var(--text-muted);">${frame.desc}</p>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function selectCarouselFrameId(id) {
+            activeSelectedFrameId = id;
+            renderCarouselLayouts();
+        }
+
+        function deleteCustomFrame(event, id) {
+            event.stopPropagation();
+            templateFramesArray = templateFramesArray.filter(f => f.id !== id);
+            if (activeSelectedFrameId === id) {
+                activeSelectedFrameId = templateFramesArray[0].id;
+            }
+            saveFramesLibraryToDisk();
+            renderCarouselLayouts();
+            displayToastMessage("Frame dihapus.");
+        }
+
+        function initiateFrameCreatorWorkspace() {
+            navigateTo('screen-frame-creator');
+            creatorLoadedBackgroundBase64 = null;
+            document.getElementById('creator-bg-preview-img').style.display = 'none';
+            document.getElementById('creator-bg-preview-img').src = "";
+            updateCreatorCanvasBackgroundColor();
+            
+            creatorDefinedSlots = [
+                { left: 50, top: 50, width: 500, height: 350 },
+                { left: 50, top: 450, width: 500, height: 350 },
+                { left: 50, top: 850, width: 500, height: 350 }
+            ];
+            creatorSelectedSlotIndex = 0;
+            changeCreatorCanvasRatio('2x6');
+        }
+
+        function changeCreatorCanvasRatio(ratioType) {
+            creatorActiveRatio = ratioType;
+            const container = document.getElementById('creator-canvas-view');
+            const b1 = document.getElementById('btn-ratio-2x6');
+            const b2 = document.getElementById('btn-ratio-4x6');
+
+            if (ratioType === '2x6') {
+                container.className = "creator-canvas-container ratio-2x6";
+                b1.style.borderColor = "var(--neon-blue)";
+                b2.style.borderColor = "var(--border-glass)";
+            } else {
+                container.className = "creator-canvas-container ratio-4x6";
+                b2.style.borderColor = "var(--neon-blue)";
+                b1.style.borderColor = "var(--border-glass)";
+            }
+            setTimeout(renderAdjustableCreatorSlotsDom, 50);
+        }
+
+        function renderAdjustableCreatorSlotsDom() {
+            const parent = document.getElementById('creator-slots-container');
+            parent.innerHTML = "";
+
+            const targetW = (creatorActiveRatio === '2x6') ? 600 : 1200;
+            const currentCanvasWidth = parent.clientWidth || (creatorActiveRatio === '2x6' ? 126 : 252); 
+            const factorScale = currentCanvasWidth / targetW;
+
+            creatorDefinedSlots.forEach((slot, idx) => {
+                const node = document.createElement('div');
+                node.className = "creator-adjustable-slot";
+                if(idx === creatorSelectedSlotIndex) node.classList.add('active-create-slot');
+
+                node.style.left = `${slot.left * factorScale}px`;
+                node.style.top = `${slot.top * factorScale}px`;
+                node.style.width = `${slot.width * factorScale}px`;
+                node.style.height = `${slot.height * factorScale}px`;
+
+                node.innerHTML = `
+                    <span style="font-size:10px; font-weight:800; color:#fff; text-shadow:0 1px 3px #000;">FOTO ${idx+1}<br><small>${slot.width}x${slot.height}</small></span>
+                    <div class="slot-delete-node" onclick="removeSelectedAdjustableSlot(event, ${idx})"><i class="fa-solid fa-xmark"></i></div>
+                    <div class="slot-resize-handle"></div>
+                `;
+
+                node.addEventListener('pointerdown', (e) => {
+                    if(e.target.classList.contains('slot-delete-node') || e.target.closest('.slot-delete-node')) return;
+                    node.setPointerCapture(e.pointerId);
+                    handleSlotPointerDown(e, idx, 'move');
+                });
+
+                const resizeHandle = node.querySelector('.slot-resize-handle');
+                resizeHandle.addEventListener('pointerdown', (e) => {
+                    e.stopPropagation();
+                    node.setPointerCapture(e.pointerId);
+                    handleSlotPointerDown(e, idx, 'resize');
+                });
+
+                parent.appendChild(node);
+            });
+        }
+
+        function addNewAdjustableLayoutSlot() {
+            if (creatorDefinedSlots.length >= 10) {
+                displayToastMessage("Maksimal 10 kotak foto!");
+                return;
+            }
+            
+            const targetW = (creatorActiveRatio === '2x6') ? 600 : 1200;
+            let nextY = 50;
+            if(creatorDefinedSlots.length > 0) {
+                const lastSlot = creatorDefinedSlots[creatorDefinedSlots.length - 1];
+                nextY = Math.min(1400, lastSlot.top + lastSlot.height + 40);
+            }
+
+            creatorDefinedSlots.push({
+                left: (targetW === 600) ? 50 : 100,
+                top: nextY,
+                width: (targetW === 600) ? 500 : 450,
+                height: 300
+            });
+
+            creatorSelectedSlotIndex = creatorDefinedSlots.length - 1;
+            renderAdjustableCreatorSlotsDom();
+        }
+
+        function removeSelectedAdjustableSlot(e, index) {
+            e.preventDefault();
+            e.stopPropagation();
+            creatorDefinedSlots.splice(index, 1);
+            creatorSelectedSlotIndex = (creatorDefinedSlots.length > 0) ? 0 : null;
+            renderAdjustableCreatorSlotsDom();
+        }
+
+        function resizeSelectedAdjustableSlot(scaleMultiplier) {
+            if(creatorSelectedSlotIndex === null) return;
+            let slot = creatorDefinedSlots[creatorSelectedSlotIndex];
+            const targetW = (creatorActiveRatio === '2x6') ? 600 : 1200;
+            
+            let centerPointX = slot.left + (slot.width / 2);
+            let centerPointY = slot.top + (slot.height / 2);
+
+            let newWidth = Math.max(80, Math.min(targetW, Math.round(slot.width * scaleMultiplier)));
+            let newHeight = Math.max(80, Math.min(1600, Math.round(slot.height * scaleMultiplier)));
+
+            slot.left = Math.max(0, Math.min(targetW - newWidth, Math.round(centerPointX - (newWidth / 2))));
+            slot.top = Math.max(0, Math.min(1800 - newHeight, Math.round(centerPointY - (newHeight / 2))));
+            slot.width = newWidth;
+            slot.height = newHeight;
+            
+            renderAdjustableCreatorSlotsDom();
+        }
+
+        function rotateSelectedAdjustableSlot() {
+            if(creatorSelectedSlotIndex === null) return;
+            let slot = creatorDefinedSlots[creatorSelectedSlotIndex];
+            const targetW = (creatorActiveRatio === '2x6') ? 600 : 1200;
+
+            let currentWidth = slot.width;
+            let currentHeight = slot.height;
+
+            let centerPointX = slot.left + (currentWidth / 2);
+            let centerPointY = slot.top + (currentHeight / 2);
+
+            let rotatedWidth = currentHeight;
+            let rotatedHeight = currentWidth;
+
+            if (rotatedWidth > targetW) {
+                rotatedWidth = targetW;
+            }
+
+            slot.left = Math.max(0, Math.min(targetW - rotatedWidth, Math.round(centerPointX - (rotatedWidth / 2))));
+            slot.top = Math.max(0, Math.min(1800 - rotatedHeight, Math.round(centerPointY - (rotatedHeight / 2))));
+            slot.width = rotatedWidth;
+            slot.height = rotatedHeight;
+
+            renderAdjustableCreatorSlotsDom();
+            displayToastMessage("Kotak diputar!");
+        }
+
+        function triggerBackgroundCreatorUpload() {
+            document.getElementById('creator-bg-uploader').click();
+        }
+
+        function handleBackgroundCreatorUpload(input) {
+            const file = input.files[0];
+            if(!file) return;
+
+            showProcessingModal("Membaca Background", "Memuat berkas gambar...");
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                creatorLoadedBackgroundBase64 = e.target.result;
+                const imgNode = document.getElementById('creator-bg-preview-img');
+                imgNode.src = creatorLoadedBackgroundBase64;
+                imgNode.style.display = "block";
+                hideProcessingModal();
+                displayToastMessage("Gambar background dimuat!");
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function handleSlotPointerDown(e, index, mode) {
+            creatorSelectedSlotIndex = index;
+            creatorDragMode = mode;
+            creatorDraggingElement = index;
+
+            creatorStartCoords = { x: e.clientX, y: e.clientY };
+            const slot = creatorDefinedSlots[index];
+            creatorStartGeometry = { ...slot };
+
+            renderAdjustableCreatorSlotsDom();
+        }
+
+        function setupGlobalWindowDragEvents() {
+            window.addEventListener('pointermove', (e) => {
+                if (creatorDraggingElement === null) return;
+
+                const deltaXReal = e.clientX - creatorStartCoords.x;
+                const deltaYReal = e.clientY - creatorStartCoords.y;
+
+                const parent = document.getElementById('creator-slots-container');
+                const targetW = (creatorActiveRatio === '2x6') ? 600 : 1200;
+                const factorScale = parent.clientWidth / targetW;
+
+                const deltaXCanvas = Math.round(deltaXReal / factorScale);
+                const deltaYCanvas = Math.round(deltaYReal / factorScale);
+
+                let slot = creatorDefinedSlots[creatorDraggingElement];
+
+                if (creatorDragMode === 'move') {
+                    slot.left = Math.max(0, Math.min(targetW - creatorStartGeometry.width, creatorStartGeometry.left + deltaXCanvas));
+                    slot.top = Math.max(0, Math.min(1800 - creatorStartGeometry.height, creatorStartGeometry.top + deltaYCanvas));
+                } else if (creatorDragMode === 'resize') {
+                    slot.width = Math.max(60, Math.min(targetW - creatorStartGeometry.left, creatorStartGeometry.width + deltaXCanvas));
+                    slot.height = Math.max(60, Math.min(1800 - creatorStartGeometry.top, creatorStartGeometry.height + deltaYCanvas));
+                }
+                renderAdjustableCreatorSlotsDom();
+            });
+
+            const clearDragState = () => { creatorDraggingElement = null; };
+            window.addEventListener('pointerup', clearDragState);
+            window.addEventListener('pointercancel', clearDragState);
+        }
+
+        function compileAndSaveCustomFrameAsset() {
+            if (creatorDefinedSlots.length === 0) {
+                displayToastMessage("Harus ada minimal 1 slot!");
+                return;
+            }
+
+            showProcessingModal("Menyusun Frame", "Mengekspor layout...");
+            const chosenColorHex = applicationConfig.frameColor;
+
+            setTimeout(() => {
+                const targetW = (creatorActiveRatio === '2x6') ? 600 : 1200;
+                const targetH = 1800;
+
+                const baseCanvas = document.createElement('canvas');
+                baseCanvas.width = targetW;
+                baseCanvas.height = targetH;
+                const ctx = baseCanvas.getContext('2d');
+
+                ctx.fillStyle = chosenColorHex;
+                ctx.fillRect(0, 0, targetW, targetH);
+                
+                if (creatorLoadedBackgroundBase64) {
+                    const bgImg = new Image();
+                    bgImg.src = creatorLoadedBackgroundBase64;
+                    bgImg.onload = function() {
+                        ctx.drawImage(bgImg, 0, 0, targetW, targetH);
+                        applySlotsHolesAndWatermark(baseCanvas, ctx, targetW, targetH);
+                    };
+                } else {
+                    applySlotsHolesAndWatermark(baseCanvas, ctx, targetW, targetH);
+                }
+            }, 300);
+        }
+
+        function applySlotsHolesAndWatermark(canvas, ctx, width, height) {
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.fillStyle = '#000000';
+
+            creatorDefinedSlots.forEach(slot => {
+                ctx.fillRect(slot.left, slot.top, slot.width, slot.height);
+            });
+
+            ctx.globalCompositeOperation = 'source-over';
+            
+            if (applicationConfig.watermark !== false) {
+                ctx.fillStyle = '#4facfe';
+                ctx.font = 'bold 30px "Plus Jakarta Sans"';
+                ctx.textAlign = 'center';
+                ctx.fillText("VNOTEBOOTH PREMIUM", width / 2, height - 50);
+            }
+
+            const exportedBase64Image = canvas.toDataURL('image/png');
+            const newUniqueFrameId = 'CUSTOM-VAI-' + Date.now();
+
+            templateFramesArray.push({
+                id: newUniqueFrameId,
+                name: `Custom Frame ${templateFramesArray.length - 1}`,
+                type: creatorActiveRatio,
+                desc: `Visual Creator (${creatorDefinedSlots.length} Slot)`,
+                isCustom: true,
+                slots: JSON.parse(JSON.stringify(creatorDefinedSlots)), 
+                data: exportedBase64Image
+            });
+
+            saveFramesLibraryToDisk();
+            activeSelectedFrameId = newUniqueFrameId; 
+            hideProcessingModal();
+            displayToastMessage("Frame kustom disimpan!");
+            
+            renderCarouselLayouts();
+            navigateTo('screen-layout');
+        }
+
+        function generateBase64PlaceholderFrame(type, slotsArray, hexColor) {
+            const dummyCanvas = document.createElement('canvas');
+            const w = (type === '2x6') ? 600 : 1200;
+            dummyCanvas.width = w;
+            dummyCanvas.height = 1800;
+            const ctx = dummyCanvas.getContext('2d');
+            
+            ctx.fillStyle = hexColor || '#141419';
+            ctx.fillRect(0, 0, w, 1800);
+            
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.fillStyle = '#00';
+            slotsArray.forEach(s => {
+                ctx.fillRect(s.left, s.top, s.width, s.height);
+            });
+            
+            ctx.globalCompositeOperation = 'source-over';
+            
+            if (applicationConfig.watermark !== false) {
+                ctx.fillStyle = '#00f2fe';
+                ctx.font = 'bold 36px "Plus Jakarta Sans"';
+                ctx.textAlign = 'center';
+                ctx.fillText("VNOTEBOOTH PREMIUM", w / 2, 1740);
+            }
+            
+            return dummyCanvas.toDataURL('image/png');
+        }
+
+        async function startPhotoSession() {
+            navigateTo('screen-capture');
+            isRetakeSession = false;
+            capturedPhotosArray = [];
+            
+            const currentFrameObj = templateFramesArray.find(f => f.id === activeSelectedFrameId);
+            const totalRequiredPhotos = currentFrameObj.slots ? currentFrameObj.slots.length : 4;
+
+            const filmstripContainer = document.getElementById('session-filmstrip');
+            filmstripContainer.innerHTML = "";
+            for(let i=0; i<totalRequiredPhotos; i++) {
+                filmstripContainer.innerHTML += `<div class="strip-slot" id="slot-${i}"><span class="slot-badge">FOTO ${i+1}</span></div>`;
+            }
+            
+            document.getElementById('btn-trigger-capture').style.display = 'inline-flex';
+            await bootCameraStreamDevice();
+        }
+
+        async function bootCameraStreamDevice() {
+            const cameraNode = document.getElementById('camera-stream');
+            if (applicationConfig.mirror) cameraNode.classList.add('mirrored');
+            else cameraNode.classList.remove('mirrored');
+
+            try {
+                const userConstraints = {
+                    audio: false,
+                    video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" }
+                };
+                mediaStreamTrackReference = await navigator.mediaDevices.getUserMedia(userConstraints);
+                cameraNode.srcObject = mediaStreamTrackReference;
+            } catch (err) {
+                console.error(err);
+                displayToastMessage("Gagal mengakses kamera.");
+                navigateTo('screen-layout');
+            }
+        }
+
+        function terminateCameraHardwareResource() {
+            if (mediaStreamTrackReference) {
+                mediaStreamTrackReference.getTracks().forEach(track => track.stop());
+                mediaStreamTrackReference = null;
+            }
+            const cameraNode = document.getElementById('camera-stream');
+            if(cameraNode) {
+                cameraNode.srcObject = null;
+                cameraNode.load();
+            }
+        }
+
+        function executeCaptureSequence() {
+            document.getElementById('btn-trigger-capture').style.display = 'none';
+            
+            if (isRetakeSession) {
+                runIteration(reviewSelectedIdx, true);
+            } else {
+                let currentSequenceIndex = 0;
+                const currentFrameObj = templateFramesArray.find(f => f.id === activeSelectedFrameId);
+                const maxPhotosNeeded = currentFrameObj.slots ? currentFrameObj.slots.length : 4;
+                runIteration(currentSequenceIndex, false, maxPhotosNeeded);
+            }
+
+            function runIteration(idx, singleMode, max) {
+                if (!singleMode && idx >= max) {
+                    terminateCameraHardwareResource();
+                    displayToastMessage("Sesi foto selesai.");
+                    setTimeout(() => { openReviewRetakeScreen(); }, 600);
+                    return;
+                }
+
+                const currentSlotNode = document.getElementById(`slot-${idx}`);
+                if(currentSlotNode) currentSlotNode.classList.add('active');
+                
+                let counterVal = applicationConfig.countdown;
+                const overlay = document.getElementById('countdown-layer');
+                const textNode = document.getElementById('countdown-number');
+                
+                textNode.innerText = counterVal;
+                overlay.style.display = 'flex';
+
+                const timerInterval = setInterval(() => {
+                    counterVal--;
+                    if (counterVal <= 0) {
+                        clearInterval(timerInterval);
+                        overlay.style.display = 'none';
+                        executeHardwareFrameSnapshot(idx);
+                        
+                        if (singleMode) {
+                            terminateCameraHardwareResource();
+                            displayToastMessage("Retake selesai.");
+                            setTimeout(() => { openReviewRetakeScreen(); }, 600);
+                        } else {
+                            idx++;
+                            setTimeout(() => { runIteration(idx, false, max); }, 1000);
+                        }
+                    } else {
+                        textNode.innerText = counterVal;
+                    }
+                }, 1000);
+            }
+        }
+
+        function executeHardwareFrameSnapshot(slotIndex) {
+            const videoElement = document.getElementById('camera-stream');
+            const hiddenCanvas = document.createElement('canvas');
+            
+            hiddenCanvas.width = 960;
+            hiddenCanvas.height = 720;
+            
+            const context = hiddenCanvas.getContext('2d');
+            if (applicationConfig.mirror) {
+                context.translate(hiddenCanvas.width, 0);
+                context.scale(-1, 1);
+            }
+            
+            const vWidth = videoElement.videoWidth || 1280;
+            const vHeight = videoElement.videoHeight || 720;
+            const targetAspect = 960 / 720;
+            const videoAspect = vWidth / vHeight;
+            
+            let sourceX = 0, sourceY = 0, sourceWidth = vWidth, sourceHeight = vHeight;
+            if (videoAspect > targetAspect) {
+                sourceWidth = vHeight * targetAspect;
+                sourceX = (vWidth - sourceWidth) / 2;
+            } else {
+                sourceHeight = vWidth / targetAspect;
+                sourceY = (vHeight - sourceHeight) / 2;
+            }
+
+            context.drawImage(videoElement, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, 960, 720);
+            
+            if (applicationConfig.flash) {
+                const flashBox = document.getElementById('flash-layer');
+                flashBox.classList.add('flash-active');
+                setTimeout(() => { flashBox.classList.remove('flash-active'); }, 400);
+            }
+
+            const frameBase64Blob = hiddenCanvas.toDataURL('image/jpeg', 0.9);
+            
+            if (isRetakeSession) {
+                capturedPhotosArray[slotIndex] = frameBase64Blob;
+            } else {
+                capturedPhotosArray.push(frameBase64Blob);
+            }
+
+            const activeSlotContainer = document.getElementById(`slot-${slotIndex}`);
+            if (activeSlotContainer) {
+                const existingImg = activeSlotContainer.querySelector('img');
+                if (existingImg) existingImg.remove();
+                
+                const displayImg = document.createElement('img');
+                displayImg.src = frameBase64Blob;
+                activeSlotContainer.appendChild(displayImg);
+                activeSlotContainer.classList.remove('active');
+            }
+            
+            const isLandscape = document.body.classList.contains('kiosk-landscape');
+            if (isLandscape) {
+                document.getElementById('session-filmstrip').scrollTop += 75;
+            } else {
+                document.getElementById('session-filmstrip').scrollLeft += 95;
+            }
+        }
+
+        function openReviewRetakeScreen() {
+            navigateTo('screen-review-retake');
+            reviewSelectedIdx = null;
+            document.getElementById('btn-action-retake').disabled = true;
+            
+            const wrapper = document.getElementById('review-photos-wrapper');
+            wrapper.innerHTML = "";
+
+            capturedPhotosArray.forEach((photo, idx) => {
+                const card = document.createElement('div');
+                card.className = "review-card";
+                card.setAttribute('onclick', `selectReviewPhoto(${idx})`);
+                card.id = `review-card-${idx}`;
+                card.innerHTML = `
+                    <img src="${photo}" class="review-thumb" alt="Captured Photo">
+                    <div class="review-meta">
+                        <span style="font-size:0.8rem; font-weight:700;">FOTO ${idx+1}</span>
+                        <i class="fa-solid fa-circle-check check-icon" style="color:var(--text-muted);"></i>
+                    </div>
+                `;
+                wrapper.appendChild(card);
+            });
+        }
+
+        function selectReviewPhoto(idx) {
+            reviewSelectedIdx = idx;
+            document.querySelectorAll('.review-card').forEach((card, i) => {
+                const icon = card.querySelector('.check-icon');
+                if (i === idx) {
+                    card.classList.add('selected');
+                    icon.style.color = "var(--neon-blue)";
+                } else {
+                    card.classList.remove('selected');
+                    icon.style.color = "var(--text-muted)";
+                }
+            });
+            document.getElementById('btn-action-retake').disabled = false;
+        }
+
+        async function triggerSinglePhotoRetake() {
+            if (reviewSelectedIdx === null) return;
+            isRetakeSession = true;
+            navigateTo('screen-capture');
+            
+            const filmstripContainer = document.getElementById('session-filmstrip');
+            filmstripContainer.innerHTML = "";
+            
+            capturedPhotosArray.forEach((photo, i) => {
+                const isActive = (i === reviewSelectedIdx) ? "active" : "";
+                filmstripContainer.innerHTML += `
+                    <div class="strip-slot ${isActive}" id="slot-${i}">
+                        <img src="${photo}">
+                        <span class="slot-badge">FOTO ${i+1}</span>
+                    </div>
+                `;
+            });
+
+            document.getElementById('btn-trigger-capture').style.display = 'none';
+            await bootCameraStreamDevice();
+            executeCaptureSequence();
+        }
+
+        function proceedToEditorWorkspace() {
+            setupPhotoWorkspaceEditor();
+        }
+
+        function setupPhotoWorkspaceEditor() {
+            navigateTo('screen-editor');
+            const currentFrameObj = templateFramesArray.find(f => f.id === activeSelectedFrameId);
+            const viewFrameImg = document.getElementById('editor-frame-img');
+            viewFrameImg.src = currentFrameObj.data;
+
+            const workspaceWrapper = document.getElementById('editor-canvas-view');
+            if (currentFrameObj.type === '2x6') workspaceWrapper.className = "editor-canvas-container ratio-2x6";
+            else workspaceWrapper.className = "editor-canvas-container ratio-4x6";
+
+            arrangementSlotsData = [];
+            const targetSlotsArr = currentFrameObj.slots || [];
+            
+            targetSlotsArr.forEach((slot, i) => {
+                arrangementSlotsData.push({
+                    photoIndex: i,
+                    scale: 1.0,
+                    rotation: 0,
+                    offsetX: 0,
+                    offsetY: 0
+                });
+            });
+
+            renderUnderlayComposerDomGrid(currentFrameObj);
+            selectActiveEditorSlotIndex(0);
+            initNativeTouchGestureEngine();
+        }
+
+        function renderUnderlayComposerDomGrid(currentFrameObj) {
+            const container = document.getElementById('composer-underlay');
+            container.innerHTML = "";
+            
+            const targetW = (currentFrameObj.type === '2x6') ? 600 : 1200;
+            const scaleFactor = container.clientWidth / targetW;
+            const targetSlotsArr = currentFrameObj.slots || [];
+
+            arrangementSlotsData.forEach((slotData, index) => {
+                const slotGeometry = targetSlotsArr[index];
+                const slotDiv = document.createElement('div');
+                slotDiv.className = "composer-slot";
+                slotDiv.id = `composer-slot-${index}`;
+                slotDiv.onclick = () => { selectActiveEditorSlotIndex(index); };
+
+                slotDiv.style.left = `${slotGeometry.left * scaleFactor}px`;
+                slotDiv.style.top = `${slotGeometry.top * scaleFactor}px`;
+                slotDiv.style.width = `${slotGeometry.width * scaleFactor}px`;
+                slotDiv.style.height = `${slotGeometry.height * scaleFactor}px`;
+
+                const imgObject = document.createElement('img');
+                imgObject.src = capturedPhotosArray[slotData.photoIndex];
+                imgObject.id = `composer-img-${index}`;
+                imgObject.style.position = 'absolute';
+
+                slotDiv.appendChild(imgObject);
+                container.appendChild(slotDiv);
+                
+                setTimeout(() => { syncImageTransformMatrixStyles(index); }, 50);
+            });
+        }
+
+        function selectActiveEditorSlotIndex(idx) {
+            if(arrangementSlotsData.length === 0) return;
+            activeSelectedSlotIndex = idx;
+            document.querySelectorAll('.composer-slot').forEach((slot, currentIdx) => {
+                if (currentIdx === idx) slot.classList.add('selected-slot');
+                else slot.classList.remove('selected-slot');
+            });
+        }
+
+        function navigateSlot(direction) {
+            let total = arrangementSlotsData.length;
+            let nextIndex = activeSelectedSlotIndex + direction;
+            if (nextIndex < 0) nextIndex = total - 1;
+            if (nextIndex >= total) nextIndex = 0;
+            selectActiveEditorSlotIndex(nextIndex);
+        }
+
+        function syncImageTransformMatrixStyles(idx) {
+            const node = document.getElementById(`composer-img-${idx}`);
+            if (!node) return;
+            const nodeParent = node.parentElement;
+            if (!nodeParent) return;
+
+            const slotState = arrangementSlotsData[idx];
+            
+            const parentWidth = nodeParent.clientWidth;
+            const parentHeight = nodeParent.clientHeight;
+            const parentAspect = parentWidth / parentHeight;
+            
+            const nativeImgAspect = 4 / 3;
+
+            let calculatedBaseWidth = parentWidth;
+            let calculatedBaseHeight = parentHeight;
+
+            if (nativeImgAspect > parentAspect) {
+                calculatedBaseWidth = parentHeight * nativeImgAspect;
+            } else {
+                calculatedBaseHeight = parentWidth / nativeImgAspect;
+            }
+
+            node.style.width = `${calculatedBaseWidth}px`;
+            node.style.height = `${calculatedBaseHeight}px`;
+            
+            const centerLeftX = (parentWidth - calculatedBaseWidth) / 2;
+            const centerTopY = (parentHeight - calculatedBaseHeight) / 2;
+
+            node.style.left = `${centerLeftX}px`;
+            node.style.top = `${centerTopY}px`;
+            
+            node.style.transform = `translate(${slotState.offsetX}px, ${slotState.offsetY}px) scale(${slotState.scale}) rotate(${slotState.rotation}deg)`;
+        }
+
+        // ENGINE NATIVE MULTI-TOUCH GESTURE (Pinch, Drag, & Rotate Bebas)
+        function initNativeTouchGestureEngine() {
+            const zone = document.getElementById('multi-touch-editor-zone');
+            
+            zone.addEventListener('pointerdown', (e) => {
+                activePointerCache.push(e);
+                if (activePointerCache.length === 1) {
+                    // Single touch tracking data awal ada di pointermove
+                } else if (activePointerCache.length === 2) {
+                    const currentSlotState = arrangementSlotsData[activeSelectedSlotIndex];
+                    baseTransformScale = currentSlotState.scale;
+                    baseTransformAngle = currentSlotState.rotation;
+                    initialGestureDistance = getPointersDistance(activePointerCache[0], activePointerCache[1]);
+                    initialGestureAngle = getPointersAngle(activePointerCache[0], activePointerCache[1]);
+                }
+            });
+
+            zone.addEventListener('pointermove', (e) => {
+                const index = activePointerCache.findIndex(p => p.pointerId === e.pointerId);
+                if (index === -1) return;
+                activePointerCache[index] = e;
+
+                const currentSlotState = arrangementSlotsData[activeSelectedSlotIndex];
+                if(!currentSlotState) return;
+
+                if (activePointerCache.length === 1) {
+                    // Drag translation item tunggal
+                    if(e.movementX !== undefined) {
+                        currentSlotState.offsetX += e.movementX;
+                        currentSlotState.offsetY += e.movementY;
+                    }
+                } else if (activePointerCache.length === 2) {
+                    // Kalkulasi Pinch & Rotate 180 Jari Serentak
+                    const currentDistance = getPointersDistance(activePointerCache[0], activePointerCache[1]);
+                    const currentAngle = getPointersAngle(activePointerCache[0], activePointerCache[1]);
+
+                    const scaleFactor = currentDistance / initialGestureDistance;
+                    currentSlotState.scale = Math.max(0.3, Math.min(5, baseTransformScale * scaleFactor));
+
+                    const angleDelta = currentAngle - initialGestureAngle;
+                    currentSlotState.rotation = (baseTransformAngle + angleDelta) % 360;
+                }
+                syncImageTransformMatrixStyles(activeSelectedSlotIndex);
+            });
+
+            const handlePointerUpClean = (e) => {
+                activePointerCache = activePointerCache.filter(p => p.pointerId !== e.pointerId);
+                if(activePointerCache.length < 2) {
+                    initialGestureDistance = 0;
+                    initialGestureAngle = 0;
+                }
+            };
+
+            zone.addEventListener('pointerup', handlePointerUpClean);
+            zone.addEventListener('pointercancel', handlePointerUpClean);
+            zone.addEventListener('pointerleave', handlePointerUpClean);
+        }
+
+        function getPointersDistance(p1, p2) {
+            return Math.hypot(p2.clientX - p1.clientX, p2.clientY - p1.clientY);
+        }
+
+        function getPointersAngle(p1, p2) {
+            return Math.atan2(p2.clientY - p1.clientY, p2.clientX - p1.clientX) * 180 / Math.PI;
+        }
+
+        function transformSelectedImage(actionType) {
+            const currentSlotState = arrangementSlotsData[activeSelectedSlotIndex];
+            if (!currentSlotState) return;
+
+            switch(actionType) {
+                case 'zoomIn': currentSlotState.scale += 0.15; break;
+                case 'zoomOut': if(currentSlotState.scale > 0.4) currentSlotState.scale -= 0.15; break;
+                case 'rotate180': currentSlotState.rotation = (currentSlotState.rotation + 180) % 360; break;
+                case 'reset':
+                    currentSlotState.scale = 1.0;
+                    currentSlotState.rotation = 0;
+                    currentSlotState.offsetX = 0;
+                    currentSlotState.offsetY = 0;
+                    break;
+            }
+            syncImageTransformMatrixStyles(activeSelectedSlotIndex);
+        }
+
+        function renderFinalComposition() {
+            showProcessingModal("Meresolusi Gambar...", "Menggabungkan tata letak...");
+            const currentFrameObj = templateFramesArray.find(f => f.id === activeSelectedFrameId);
+
+            setTimeout(() => {
+                const targetCanvasWidth = (currentFrameObj.type === '2x6') ? 600 : 1200;
+                const targetCanvasHeight = 1800;
+
+                const compositionCanvas = document.createElement('canvas');
+                compositionCanvas.width = targetCanvasWidth;
+                compositionCanvas.height = targetCanvasHeight;
+                const ctx = compositionCanvas.getContext('2d');
+
+                ctx.fillStyle = "#ffffff";
+                ctx.fillRect(0, 0, targetCanvasWidth, targetCanvasHeight);
+
+                let processingPhotosCounter = 0;
+                const targetSlotsArr = currentFrameObj.slots || [];
+
+                arrangementSlotsData.forEach((slotData, index) => {
+                    const sourceImageInstance = new Image();
+                    sourceImageInstance.src = capturedPhotosArray[slotData.photoIndex];
+                    
+                    sourceImageInstance.onload = function() {
+                        ctx.save();
+                        const geometry = targetSlotsArr[index];
+                        
+                        let boundsX = geometry.left;
+                        let boundsY = geometry.top;
+                        let boundsW = geometry.width;
+                        let boundsH = geometry.height;
+
+                        ctx.beginPath();
+                        ctx.rect(boundsX, boundsY, boundsW, boundsH);
+                        ctx.clip();
+
+                        const slotDomNode = document.getElementById(`composer-slot-${index}`);
+                        
+                        const domScale = boundsW / slotDomNode.clientWidth;
+                        const computedCenterX = boundsX + (boundsW / 2);
+                        const computedCenterY = boundsY + (boundsH / 2);
+
+                        ctx.translate(computedCenterX, computedCenterY);
+                        ctx.rotate((slotData.rotation * Math.PI) / 180);
+
+                        const nativeImgAspect = 4 / 3;
+                        let rawImgW = slotDomNode.clientWidth;
+                        let rawImgH = slotDomNode.clientHeight;
+                        const parentAspect = slotDomNode.clientWidth / slotDomNode.clientHeight;
+
+                        if (nativeImgAspect > parentAspect) {
+                            rawImgW = slotDomNode.clientHeight * nativeImgAspect;
+                        } else {
+                            rawImgH = slotDomNode.clientWidth / nativeImgAspect;
+                        }
+
+                        const centerLeftX = (slotDomNode.clientWidth - rawImgW) / 2;
+                        const centerTopY = (slotDomNode.clientHeight - rawImgH) / 2;
+
+                        const totalOffsetX = (centerLeftX + (rawImgW / 2) - (slotDomNode.clientWidth / 2) + slotData.offsetX) * domScale;
+                        const totalOffsetY = (centerTopY + (rawImgH / 2) - (slotDomNode.clientHeight / 2) + slotData.offsetY) * domScale;
+
+                        ctx.translate(totalOffsetX, totalOffsetY);
+
+                        const drawnImageWidth = rawImgW * domScale * slotData.scale;
+                        const drawnImageHeight = rawImgH * domScale * slotData.scale;
+
+                        ctx.drawImage(sourceImageInstance, -drawnImageWidth / 2, -drawnImageHeight / 2, drawnImageWidth, drawnImageHeight);
+                        ctx.restore();
+
+                        processingPhotosCounter++;
+                        checkAndFinalizeRender();
+                    };
+                });
+
+                function checkAndFinalizeRender() {
+                    if (processingPhotosCounter === arrangementSlotsData.length) {
+                        const topFrameLayerGraphic = new Image();
+                        topFrameLayerGraphic.src = currentFrameObj.data;
+                        topFrameLayerGraphic.onload = function() {
+                            ctx.drawImage(topFrameLayerGraphic, 0, 0, targetCanvasWidth, targetCanvasHeight);
+                            
+                            if (applicationConfig.watermark !== false) {
+                                ctx.fillStyle = currentFrameObj.id.includes('4x6') ? '#00f2fe' : '#4facfe';
+                                ctx.font = 'bold ' + (currentFrameObj.id.includes('4x6') ? '36px' : '30px') + ' "Plus Jakarta Sans"';
+                                ctx.textAlign = 'center';
+                                ctx.fillText("VNOTEBOOTH PREMIUM", targetCanvasWidth / 2, targetCanvasHeight - (currentFrameObj.id.includes('4x6') ? 60 : 50));
+                            }
+
+                            const highResOutputBase64 = compositionCanvas.toDataURL('image/jpeg', 0.94);
+                            document.getElementById('final-render-preview').src = highResOutputBase64;
+                            
+                            saveResultToGalleryLocalStorage(highResOutputBase64);
+                            hideProcessingModal();
+                            navigateTo('screen-result');
+                            handleExternalCloudUploadWorkflow(highResOutputBase64);
+                        };
+                    }
+                }
+            }, 300);
+        }
+
+        function saveResultToGalleryLocalStorage(base64Data) {
+            try {
+                let existingItems = [];
+                const rawGalleryData = localStorage.getItem(GALLERY_STORAGE_KEY);
+                if (rawGalleryData) existingItems = JSON.parse(rawGalleryData);
+                
+                existingItems.unshift({
+                    id: 'PB-' + Date.now(),
+                    timestamp: new Date().toLocaleString('id-ID'),
+                    image: base64Data
+                });
+                localStorage.setItem(GALLERY_STORAGE_KEY, JSON.stringify(existingItems));
+            } catch(e) {
+                console.error(e);
+                displayToastMessage("Storage penuh, gagal simpan lokal.");
+            }
+        }
+
+        function downloadImage() {
+            const dataUrlString = document.getElementById('final-render-preview').src;
+            const elementAnchor = document.createElement('a');
+            elementAnchor.href = dataUrlString;
+            elementAnchor.download = `vnotebooth-${Date.now()}.jpg`;
+            document.body.appendChild(elementAnchor);
+            elementAnchor.click();
+            document.body.removeChild(elementAnchor);
+        }
+
+        function handleExternalCloudUploadWorkflow(base64ImageString) {
+            if (!applicationConfig.autoUpload) {
+                document.getElementById('qr-container-block').style.display = 'none';
+                return;
+            }
+
+            showCloudProcessingModalProgress();
+            const optimizedBase64Payload = base64ImageString.replace(/^data:image\/(png|jpeg|jpg);base64,/, "");
+            
+            const networkFormData = new FormData();
+            networkFormData.append("image", optimizedBase64Payload);
+
+            const xhrRequest = new XMLHttpRequest();
+            xhrRequest.open("POST", `https://api.imgbb.com/1/upload?key=${IMGBB_API_TOKEN}`);
+
+            xhrRequest.upload.addEventListener("progress", (e) => {
+                if (e.lengthComputable) {
+                    const percentageValue = Math.round((e.loaded / e.total) * 100);
+                    const progressBar = document.getElementById('progress-bar');
+                    if(progressBar) progressBar.style.width = `${percentageValue}%`;
+                    document.getElementById('processing-desc').innerText = `Mengirim data: ${percentageValue}%`;
+                }
+            });
+
+            xhrRequest.onreadystatechange = function () {
+                if (xhrRequest.readyState === 4) {
+                    hideProcessingModal();
+                    if (xhrRequest.status === 200) {
+                        try {
+                            const parsedNetworkResponse = JSON.parse(xhrRequest.responseText);
+                            runningCloudGeneratedUrl = parsedNetworkResponse.data.url;
+                            displayToastMessage("Upload sukses!");
+                            if (applicationConfig.autoQr) executeGeneratorQrInterfaceComponent(runningCloudGeneratedUrl);
+                        } catch(e) {
+                            displayToastMessage("Gagal memproses data server");
+                        }
+                    } else {
+                        displayToastMessage("Gagal upload cloud");
+                    }
+                }
+            };
+            xhrRequest.send(networkFormData);
+        }
+
+        function executeGeneratorQrInterfaceComponent(targetWebUrl) {
+            const qrBlockNode = document.getElementById('qr-container-block');
+            const targetQrWrapper = document.getElementById('qrcode');
+            targetQrWrapper.innerHTML = "";
+            
+            qrCodeComponentInstance = new QRCode(targetQrWrapper, {
+                text: targetWebUrl,
+                width: 100,
+                height: 100,
+                colorDark : "#000000",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.M
+            });
+            qrBlockNode.style.display = 'flex';
+        }
+
+        function copyCloudUrl() {
+            if(!runningCloudGeneratedUrl) return;
+            navigator.clipboard.writeText(runningCloudGeneratedUrl).then(() => {
+                displayToastMessage("Link berhasil disalin!");
+            });
+        }
+
+        function printHardcopy() {
+            const currentFrameObj = templateFramesArray.find(f => f.id === activeSelectedFrameId);
+            if(currentFrameObj.type === '2x6') document.body.className = "print-2x6";
+            else document.body.className = "print-4x6";
+            window.print();
+        }
+
+        async function initiateBluetoothThermalPrint() {
+            if (!navigator.bluetooth) {
+                displayToastMessage("Web Bluetooth tidak didukung.");
+                return;
+            }
+            showProcessingModal("Koneksi Bluetooth", "Memindai printer...");
+            
+            try {
+                const targetedPeripheralDevice = await navigator.bluetooth.requestDevice({
+                    filters: [{ services: ['000018f0-0000-1000-8000-00805f9b34fb'] }],
+                    optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb']
+                });
+
+                const peripheralGattServer = await targetedPeripheralDevice.gatt.connect();
+                const dataPrimaryService = await peripheralGattServer.getPrimaryService('000018f0-0000-1000-8000-00805f9b34fb');
+                const dataAllCharacteristics = await dataPrimaryService.getCharacteristics();
+                const writeTransmissionChannel = dataAllCharacteristics.find(c => c.properties.write || c.properties.writeWithoutResponse);
+
+                if (!writeTransmissionChannel) throw new Error("Printer tidak mendukung penulisan.");
+
+                const initCommand = new Uint8Array([0x1B, 0x40]);
+                await writeTransmissionChannel.writeValue(initCommand);
+
+                const renderingSourceImg = document.getElementById('final-render-preview');
+                const matrixProcessingCanvas = document.createElement('canvas');
+                const thermalTargetWidth = 384; 
+                const computedAspect = renderingSourceImg.naturalHeight / renderingSourceImg.naturalWidth;
+                const thermalTargetHeight = Math.round(thermalTargetWidth * computedAspect);
+
+                matrixProcessingCanvas.width = thermalTargetWidth;
+                matrixProcessingCanvas.height = thermalTargetHeight;
+                
+                const canvasCtx = matrixProcessingCanvas.getContext('2d');
+                canvasCtx.drawImage(renderingSourceImg, 0, 0, thermalTargetWidth, thermalTargetHeight);
+                const parsedImgData = canvasCtx.getImageData(0, 0, thermalTargetWidth, thermalTargetHeight);
+                
+                const totalBytesHorizontal = thermalTargetWidth / 8;
+                const escPosHeaderBytes = new Uint8Array([0x1D, 0x76, 0x30, 0, totalBytesHorizontal & 0xFF, (totalBytesHorizontal >> 8) & 0xFF, thermalTargetHeight & 0xFF, (thermalTargetHeight >> 8) & 0xFF]);
+                await writeTransmissionChannel.writeValue(escPosHeaderBytes);
+
+                let pixelAccumulatorByte = 0;
+                let bitPositionWeightIndex = 7;
+                let binaryDataChunkBuffer = [];
+
+                for (let y = 0; y < thermalTargetHeight; y++) {
+                    for (let x = 0; x < thermalTargetWidth; x++) {
+                        const idx = (y * thermalTargetWidth + x) * 4;
+                        const r = parsedImgData.data[idx];
+                        const g = parsedImgData.data[idx+1];
+                        const b = parsedImgData.data[idx+2];
+                        const luminanceValue = (0.2126 * r) + (0.7152 * g) + (0.0722 * b);
+                        
+                        if (luminanceValue < 128) pixelAccumulatorByte |= (1 << bitPositionWeightIndex);
+
+                        bitPositionWeightIndex--;
+                        if (bitPositionWeightIndex < 0) {
+                            binaryDataChunkBuffer.push(pixelAccumulatorByte);
+                            pixelAccumulatorByte = 0;
+                            bitPositionWeightIndex = 7;
+                        }
+                    }
+                    if(binaryDataChunkBuffer.length >= 120) {
+                        await writeTransmissionChannel.writeValue(new Uint8Array(binaryDataChunkBuffer));
+                        binaryDataChunkBuffer = [];
+                    }
+                }
+
+                if (binaryDataChunkBuffer.length > 0) await writeTransmissionChannel.writeValue(new Uint8Array(binaryDataChunkBuffer));
+
+                const feedCutCommand = new Uint8Array([0x1B, 0x64, 3, 0x1D, 0x56, 1]); 
+                await writeTransmissionChannel.writeValue(feedCutCommand);
+                hideProcessingModal();
+                displayToastMessage("Sukses dikirim ke printer!");
+            } catch (error) {
+                console.error(error);
+                hideProcessingModal();
+                displayToastMessage("Error: " + error.message);
+            }
+        }
+
+        function openGallery() {
+            navigateTo('screen-gallery');
+            const targetContainer = document.getElementById('gallery-container');
+            targetContainer.innerHTML = "";
+
+            const rawStoredString = localStorage.getItem(GALLERY_STORAGE_KEY);
+            if (!rawStoredString || JSON.parse(rawStoredString).length === 0) {
+                targetContainer.innerHTML = `<p style="grid-column: 1/-1; text-align:center; padding: 2rem; color: var(--text-muted); font-size:0.9rem;">Belum ada foto.</p>`;
+                return;
+            }
+
+            const itemsListArray = JSON.parse(rawStoredString);
+            itemsListArray.forEach(item => {
+                const elementCard = document.createElement('div');
+                elementCard.className = "glass-panel gallery-item";
+                elementCard.innerHTML = `
+                    <div class="gallery-thumb-container">
+                        <img src="${item.image}" alt="Thumb" style="max-width:100%; max-height:100%; object-fit:contain;">
+                    </div>
+                    <div style="font-size:0.7rem; color:var(--text-muted); text-align:center;">${item.timestamp}</div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.4rem; margin-top:0.4rem;">
+                        <button class="btn-action" onclick="downloadGalleryItemDirect('${item.id}')"><i class="fa-solid fa-download"></i></button>
+                        <button class="btn-action" onclick="regenerateGalleryItemQrCloud('${item.id}')"><i class="fa-solid fa-qrcode"></i></button>
+                        <button class="btn-action" style="grid-column: span 2; border-color: rgba(239,68,68,0.2);" onclick="purgeGalleryItem('${item.id}')">
+                            <i class="fa-solid fa-trash" style="color:#ef4444;"></i> Hapus
+                        </button>
+                    </div>
+                `;
+                targetContainer.appendChild(elementCard);
+            });
+        }
+
+        function downloadGalleryItemDirect(itemId) {
+            const items = JSON.parse(localStorage.getItem(GALLERY_STORAGE_KEY) || "[]");
+            const match = items.find(i => i.id === itemId);
+            if(!match) return;
+            
+            const elementAnchor = document.createElement('a');
+            elementAnchor.href = match.image;
+            elementAnchor.download = `vnotebooth-${itemId}.jpg`;
+            document.body.appendChild(elementAnchor);
+            elementAnchor.click();
+            document.body.removeChild(elementAnchor);
+        }
+
+        function regenerateGalleryItemQrCloud(itemId) {
+            const items = JSON.parse(localStorage.getItem(GALLERY_STORAGE_KEY) || "[]");
+            const match = items.find(i => i.id === itemId);
+            if(!match) return;
+
+            document.getElementById('final-render-preview').src = match.image;
+            navigateTo('screen-result');
+            handleExternalCloudUploadWorkflow(match.image);
+        }
+
+        function purgeGalleryItem(itemId) {
+            let items = JSON.parse(localStorage.getItem(GALLERY_STORAGE_KEY) || "[]");
+            items = items.filter(i => i.id !== itemId);
+            localStorage.setItem(GALLERY_STORAGE_KEY, JSON.stringify(items));
+            openGallery();
+            displayToastMessage("Item dihapus.");
+        }
+
+        function showProcessingModal(title, description) {
+            document.getElementById('processing-title').innerText = title;
+            document.getElementById('processing-desc').innerText = description;
+            document.getElementById('progress-container').style.display = 'none';
+            document.getElementById('processing-modal').style.display = 'flex';
+        }
+
+        function showCloudProcessingModalProgress() {
+            document.getElementById('processing-title').innerText = "Mengunggah Digital";
+            document.getElementById('processing-desc').innerText = "Menghubungkan ke server...";
+            const progressBar = document.getElementById('progress-bar');
+            if(progressBar) progressBar.style.width = '0%';
+            document.getElementById('progress-container').style.display = 'block';
+            document.getElementById('processing-modal').style.display = 'flex';
+        }
+
+        function hideProcessingModal() {
+            document.getElementById('processing-modal').style.display = 'none';
+        }
+
+        function displayToastMessage(text) {
+            const toastNode = document.getElementById('toast');
+            toastNode.innerText = text;
+            toastNode.classList.add('visible');
+            setTimeout(() => { toastNode.classList.remove('visible'); }, 2000);
+        }
+    </script>
+</body>
+</html>
